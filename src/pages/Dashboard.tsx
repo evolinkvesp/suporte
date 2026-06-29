@@ -7,7 +7,6 @@ import {
   Clock, 
   TrendingUp, 
   Activity,
-  ArrowUpRight,
   Search,
   Calendar
 } from "lucide-react";
@@ -45,23 +44,18 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
-  const [logs, setLogs] = useState<SystemLog[]>([]);
 
   const refreshData = async () => {
     setIsLoading(true);
     try {
-      const [clientsRes, logsRes] = await Promise.all([
-        supabase.from("clients").select("*"),
-        supabase.from("maintenance_notification_logs").select("*").order("sent_at", { ascending: false }).limit(3)
-      ]);
-
-      if (clientsRes.error) throw clientsRes.error;
-      if (logsRes.error) throw logsRes.error;
-
-      setClients(clientsRes.data as Client[] ?? []);
-      setLogs(logsRes.data as any[] ?? []);
+      const { data, error } = await supabase.functions.invoke("clients-crm", {
+        body: { action: "listClients" },
+      });
+      if (error) throw error;
+      setClients((data?.clients as Client[]) ?? []);
     } catch (err) {
       console.error("Dashboard data fetch error:", err);
+      toast({ title: "Erro ao carregar dashboard", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -135,13 +129,6 @@ export default function Dashboard() {
       }));
   }, [clients]);
 
-  const systemAlerts = useMemo(() => {
-    return logs.map((l: any) => ({
-      msg: l.error_message || `Notificação ${l.window_type} enviada`,
-      time: format(new Date(l.sent_at), "HH:mm"),
-      type: l.status === "error" || l.error_message ? "error" : "success"
-    }));
-  }, [logs]);
   return (
     <div className="flex min-h-screen bg-background font-sans">
       <Sidebar />
@@ -312,26 +299,7 @@ export default function Dashboard() {
             <div className="glass rounded-[2.5rem] p-8">
               <h3 className="text-lg font-bold mb-8">Alertas de Sistema</h3>
               <div className="space-y-4">
-                {systemAlerts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground opacity-60 italic text-center py-10">Sem alertas recentes.</p>
-                ) : (
-                  systemAlerts.map((item, i) => (
-                    <div key={i} className="flex gap-4 items-start p-4 rounded-3xl hover:bg-secondary/20 transition-colors">
-                      <div className={cn(
-                        "h-10 w-10 rounded-2xl flex items-center justify-center shrink-0",
-                        item.type === "error" ? "bg-destructive/10 text-destructive" : 
-                        item.type === "success" ? "bg-success/10 text-success" : "bg-primary/10 text-primary"
-                      )}>
-                        {item.type === "error" ? <AlertTriangle className="h-5 w-5" /> : 
-                         item.type === "success" ? <CheckCircle2 className="h-5 w-5" /> : <Activity className="h-5 w-5" />}
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-bold tracking-tight">{item.msg}</span>
-                        <span className="text-[10px] font-black text-muted-foreground uppercase opacity-50">{item.time}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
+                <p className="text-sm text-muted-foreground opacity-60 italic text-center py-10">Sem alertas recentes.</p>
               </div>
             </div>
           </div>
