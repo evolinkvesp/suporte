@@ -1,0 +1,4 @@
+project_id = "eolsszoehrxrppviygwo"
+
+[functions.clients-crm]
+verify_jwt = false
